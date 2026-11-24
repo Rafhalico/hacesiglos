@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const TT = "https://open.tiktokapis.com/v2";
-const REDIRECT_URI = "https://rafhalico.github.io/hacesiglos/callback.html";
+const REDIRECT_URI = "https://hacesiglos-publisher.vercel.app/api/callback";
 const SCOPES = "user.info.basic,video.upload,video.publish";
 
 function key() {
