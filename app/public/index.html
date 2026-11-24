@@ -1,0 +1,79 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hace Siglos Publisher</title>
+<style>
+:root{--bg:#fbf8f2;--fg:#222;--accent:#7a1f1f;--card:#fff;--muted:#666}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:760px;margin:0 auto;padding:24px 16px;line-height:1.5}
+h1{color:var(--accent);margin:0 0 4px}.card{background:var(--card);border-radius:12px;padding:20px;margin:16px 0;box-shadow:0 1px 4px #0001}
+button,.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:12px 18px;font-size:16px;cursor:pointer;text-decoration:none;display:inline-block}
+button:disabled{opacity:.4;cursor:not-allowed}.who{display:flex;align-items:center;gap:12px}.who img{width:48px;height:48px;border-radius:50%}
+label{display:block;margin:10px 0}textarea{width:100%;min-height:140px;font:inherit;box-sizing:border-box}select{font:inherit;padding:6px}
+video{width:100%;max-width:280px;border-radius:8px;background:#000}.muted{color:var(--muted);font-size:.9em}.err{color:#b00020}.ok{color:#1b6e2a}
+footer{margin-top:32px;font-size:.85em;color:var(--muted)}footer a{color:var(--accent)}
+</style></head><body>
+<h1>Hace Siglos Publisher</h1>
+<p class="muted">Publica los vídeos del canal Hace Siglos en tu cuenta de TikTok. / Post Hace Siglos videos to your TikTok account.</p>
+<div id="err" class="err"></div>
+<div id="login" class="card" hidden>
+  <p>Conecta tu cuenta de TikTok para empezar. / Connect your TikTok account to start.</p>
+  <a class="btn" href="/api/login">Conectar con TikTok / Connect with TikTok</a>
+</div>
+<div id="app" hidden>
+  <div class="card who"><img id="avatar" alt=""><div><strong id="nick"></strong><br><span class="muted">Publicarás en esta cuenta / You will post to this account</span></div>
+    <a href="/api/logout" style="margin-left:auto" class="muted">Desconectar</a></div>
+  <div class="card">
+    <label>Vídeo / Video <select id="video"></select></label>
+    <video id="preview" controls playsinline></video>
+    <label>Texto / Caption<textarea id="caption" maxlength="2200"></textarea></label>
+    <label>¿Quién puede verlo? / Who can view this video
+      <select id="privacy"><option value="" selected disabled>Elige una opción / Select</option></select></label>
+    <label><input type="checkbox" id="comment"> Permitir comentarios / Allow comments</label>
+    <label><input type="checkbox" id="duet"> Permitir dúos / Allow Duet</label>
+    <label><input type="checkbox" id="stitch"> Permitir Stitch / Allow Stitch</label>
+    <label><input type="checkbox" id="disclose"> Divulgar contenido comercial / Disclose video content</label>
+    <div id="discloseOpts" hidden style="margin-left:24px">
+      <label><input type="checkbox" id="organic"> Tu marca / Your brand</label>
+      <label><input type="checkbox" id="branded"> Contenido de marca / Branded content</label>
+    </div>
+    <p class="muted">✔ Etiqueta «Contenido generado por IA» activada / AI-generated content label on.</p>
+    <p class="muted" id="consent">Al publicar, aceptas la <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a> de TikTok.</p>
+    <button id="post" disabled>Publicar en TikTok / Post to TikTok</button>
+    <p id="status"></p>
+  </div>
+</div>
+<footer><a href="https://rafhalico.github.io/hacesiglos/condiciones.html">Condiciones / Terms</a> · <a href="https://rafhalico.github.io/hacesiglos/privacidad.html">Privacidad / Privacy</a></footer>
+<script>
+const $=id=>document.getElementById(id);
+const labels={PUBLIC_TO_EVERYONE:"Todos / Everyone",MUTUAL_FOLLOW_FRIENDS:"Amigos / Friends",FOLLOWER_OF_CREATOR:"Seguidores / Followers",SELF_ONLY:"Solo yo / Only me"};
+const e=new URLSearchParams(location.search).get("error"); if(e)$("err").textContent=e;
+let videos=[];
+function check(){ $("post").disabled=!$("privacy").value || ($("disclose").checked && !$("organic").checked && !$("branded").checked); }
+["privacy","disclose","organic","branded"].forEach(i=>$(i).addEventListener("change",()=>{$("discloseOpts").hidden=!$("disclose").checked;
+  if($("branded").checked){const o=[...$("privacy").options].find(o=>o.value==="SELF_ONLY");if(o){o.disabled=true;if($("privacy").value==="SELF_ONLY")$("privacy").value="";}}
+  else [...$("privacy").options].forEach(o=>{if(o.value)o.disabled=false});
+  $("consent").innerHTML=$("branded").checked?'Al publicar, aceptas la <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank">Branded Content Policy</a> y la <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a> de TikTok.':'Al publicar, aceptas la <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a> de TikTok.';
+  check();}));
+$("video").addEventListener("change",()=>{const v=videos.find(x=>x.id===$("video").value);$("preview").src=v.url;$("caption").value=v.caption;});
+(async()=>{
+  const me=await (await fetch("/api/me")).json();
+  if(!me.connected){$("login").hidden=false;if(me.error)$("err").textContent=me.error;return;}
+  $("app").hidden=false; const c=me.creator;
+  $("avatar").src=c.creator_avatar_url||me.user.avatar_url; $("nick").textContent=c.creator_nickname||me.user.display_name;
+  c.privacy_level_options.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=labels[p]||p;$("privacy").append(o);});
+  [["comment","comment_disabled"],["duet","duet_disabled"],["stitch","stitch_disabled"]].forEach(([i,k])=>{if(c[k]){$(i).disabled=true;$(i).parentNode.title="Desactivado en tu cuenta";}});
+  videos=await (await fetch("/videos.json")).json();
+  videos.forEach(v=>{const o=document.createElement("option");o.value=v.id;o.textContent=v.name;$("video").append(o);});
+  $("video").dispatchEvent(new Event("change"));
+})();
+$("post").addEventListener("click",async()=>{
+  $("post").disabled=true; $("status").className=""; $("status").textContent="Subiendo… / Uploading…";
+  const r=await fetch("/api/post",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({video:$("video").value,caption:$("caption").value,
+    privacy_level:$("privacy").value,allow_comment:$("comment").checked,allow_duet:$("duet").checked,allow_stitch:$("stitch").checked,
+    brand_content:$("disclose").checked&&$("branded").checked,brand_organic:$("disclose").checked&&$("organic").checked})});
+  const j=await r.json(); if(!r.ok){$("status").className="err";$("status").textContent=j.error;check();return;}
+  $("status").textContent="Enviado. TikTok lo está procesando (puede tardar unos minutos)… / Processing…";
+  for(let i=0;i<40;i++){await new Promise(s=>setTimeout(s,5000));
+    const s=await (await fetch("/api/status?publish_id="+encodeURIComponent(j.publish_id))).json();
+    if(s.status==="PUBLISH_COMPLETE"||s.status==="SEND_TO_USER_INBOX"){$("status").className="ok";$("status").textContent="¡Publicado! Ya aparece en tu perfil de TikTok. / Posted!";return;}
+    if(s.status==="FAILED"||s.error){$("status").className="err";$("status").textContent="Error: "+(s.fail_reason||s.error);check();return;}}
+});
+</script></body></html>
