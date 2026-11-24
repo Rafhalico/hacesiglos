@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
   if (!code || !state || state !== cookies(req).tt_state) return back("Sesión caducada, vuelve a conectar.");
   const r = await fetch(`${TT}/oauth/token/`, {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ client_key: process.env.TT_CLIENT_KEY, client_secret: process.env.TT_CLIENT_SECRET,
+    body: new URLSearchParams({ client_key: (process.env.TT_CLIENT_KEY || "").trim(), client_secret: (process.env.TT_CLIENT_SECRET || "").trim(),
       code, grant_type: "authorization_code", redirect_uri: REDIRECT_URI }),
   });
   const t = await r.json().catch(() => ({}));
